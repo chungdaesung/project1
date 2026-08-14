@@ -1,8 +1,7 @@
 import React from 'react';
-import { CalculationResult } from '../types';
+import { CalculationResult, QuotationData } from '../types';
 import {
   formatKRW,
-  formatPercent,
   formatKoreanUnits,
   getMarginEvaluation,
 } from '../utils/formatters';
@@ -18,14 +17,7 @@ import {
 interface SummaryCardsProps {
   sellingPrice: number;
   result: CalculationResult;
-  data?: {
-    doorCost: number;
-    countertopCost: number;
-    hardwareCost: number;
-    productionCost: number;
-    installationCost: number;
-    otherCost: number;
-  };
+  data?: QuotationData;
 }
 
 export const SummaryCards: React.FC<SummaryCardsProps> = ({
@@ -33,14 +25,17 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
   result,
   data,
 }) => {
-  const { totalCost, margin, marginRate, isLoss, isValidSellingPrice, missingItems } =
-    result;
+  const {
+    totalCost,
+    margin,
+    marginRate,
+    isLoss,
+    isValidSellingPrice,
+    missingItems,
+    materialsCost,
+    operationsCost,
+  } = result;
   const evaluation = getMarginEvaluation(marginRate);
-
-  const materialsCost =
-    (data?.doorCost || 0) + (data?.countertopCost || 0) + (data?.hardwareCost || 0);
-  const operationsCost =
-    (data?.productionCost || 0) + (data?.installationCost || 0) + (data?.otherCost || 0);
 
   return (
     <div className="space-y-4" id="summary-section">
@@ -82,9 +77,9 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
         </div>
       )}
 
-      {/* 4 Core Metric Cards with Sleek Interface Aesthetics */}
+      {/* 4 Core Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* 1. 총 판매가 (Hero Indigo Card) */}
+        {/* 1. 총 판매가 */}
         <div
           id="card-selling-price"
           className="bg-indigo-700 rounded-2xl p-6 text-white shadow-xl shadow-indigo-100 flex flex-col justify-between"
@@ -111,7 +106,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
           </div>
         </div>
 
-        {/* 2. 총 원가 (Total Cost White Card) */}
+        {/* 2. 총 원가 */}
         <div
           id="card-total-cost"
           className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col justify-between"
@@ -134,17 +129,17 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
 
           <div className="mt-4 space-y-1.5 border-t border-slate-100 pt-3 text-xs">
             <div className="flex justify-between text-slate-500">
-              <span>주요자재비 (도어/상판/H.W)</span>
-              <span className="font-medium text-slate-700">{formatKRW(materialsCost)}</span>
+              <span>자재비 합계</span>
+              <span className="font-semibold text-slate-700">{formatKRW(materialsCost)}</span>
             </div>
             <div className="flex justify-between text-slate-500">
-              <span>운영비용 (제작/시공/기타)</span>
-              <span className="font-medium text-slate-700">{formatKRW(operationsCost)}</span>
+              <span>가공·시공·운영비</span>
+              <span className="font-semibold text-slate-700">{formatKRW(operationsCost)}</span>
             </div>
           </div>
         </div>
 
-        {/* 3. 마진 (Emerald Sleek Card) */}
+        {/* 3. 마진 (순이익) */}
         <div
           id="card-margin"
           className={`rounded-2xl border p-6 flex flex-col justify-between ${
@@ -193,11 +188,11 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
           >
             {isLoss
               ? '총원가가 판매가를 초과하여 손실이 발생합니다.'
-              : '총 판매가에서 6대 원가를 차감한 순수익 금액입니다.'}
+              : '총 판매가에서 모든 세부 원가를 차감한 순수익 금액입니다.'}
           </div>
         </div>
 
-        {/* 4. 마진율 (Amber Sleek Card) */}
+        {/* 4. 마진율 */}
         <div
           id="card-margin-rate"
           className={`rounded-2xl border p-6 flex flex-col justify-between ${

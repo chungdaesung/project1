@@ -1,55 +1,4 @@
-import { QuotationData, CalculationResult, CostItemConfig } from '../types';
-
-export const COST_ITEMS_CONFIG: CostItemConfig[] = [
-  {
-    key: 'doorCost',
-    label: '도어 금액',
-    description: '도어 도장/PET/LPM 및 가공비',
-    color: '#2563eb', // blue
-    bgLight: 'bg-blue-50',
-    borderColor: 'border-blue-200',
-  },
-  {
-    key: 'countertopCost',
-    label: '상판 금액',
-    description: '인조대리석 / 엔지니어드스톤 / 세라믹',
-    color: '#0891b2', // cyan
-    bgLight: 'bg-cyan-50',
-    borderColor: 'border-cyan-200',
-  },
-  {
-    key: 'hardwareCost',
-    label: '하드웨어 금액',
-    description: '힌지, 레일, 씽크볼, 수전, 후드, 액세서리',
-    color: '#d97706', // amber
-    bgLight: 'bg-amber-50',
-    borderColor: 'border-amber-200',
-  },
-  {
-    key: 'productionCost',
-    label: '제작비',
-    description: '몸통(PB/MDF) 재단, 엣지 밴딩, 조립 공임',
-    color: '#059669', // emerald
-    bgLight: 'bg-emerald-50',
-    borderColor: 'border-emerald-200',
-  },
-  {
-    key: 'installationCost',
-    label: '시공비',
-    description: '현장 배송, 양중 및 전문 시공팀 인건비',
-    color: '#7c3aed', // violet
-    bgLight: 'bg-violet-50',
-    borderColor: 'border-violet-200',
-  },
-  {
-    key: 'otherCost',
-    label: '기타 비용',
-    description: '폐기물 처리, 보양, 부자재 및 경비',
-    color: '#64748b', // slate
-    bgLight: 'bg-slate-50',
-    borderColor: 'border-slate-200',
-  },
-];
+import { QuotationData, CalculationResult } from '../types';
 
 /**
  * Formats a number to KRW comma-separated string (e.g. 1,500,000)
@@ -96,19 +45,24 @@ export function formatPercent(rate: number): string {
 }
 
 /**
- * Calculates total cost, margin, and margin rate based on the requirements:
- * 총원가 = 도어 금액 + 상판 금액 + 하드웨어 금액 + 제작비 + 시공비 + 기타 비용
- * 마진 = 판매가 - 총원가
- * 마진율 = (마진 ÷ 판매가) × 100
+ * Calculates total cost, margin, and margin rate based on the custom cost items
  */
 export function calculateQuotation(data: QuotationData): CalculationResult {
-  const totalCost =
-    (data.doorCost || 0) +
-    (data.countertopCost || 0) +
-    (data.hardwareCost || 0) +
-    (data.productionCost || 0) +
-    (data.installationCost || 0) +
-    (data.otherCost || 0);
+  const items = data.costItems || [];
+  
+  let totalCost = 0;
+  let materialsCost = 0;
+  let operationsCost = 0;
+
+  items.forEach((item) => {
+    const amt = Number(item.amount) || 0;
+    totalCost += amt;
+    if (item.category === '자재비') {
+      materialsCost += amt;
+    } else {
+      operationsCost += amt;
+    }
+  });
 
   const sellingPrice = data.sellingPrice || 0;
   const margin = sellingPrice - totalCost;
@@ -119,10 +73,10 @@ export function calculateQuotation(data: QuotationData): CalculationResult {
   }
 
   const missingItems: string[] = [];
-  if (!data.customerName.trim()) missingItems.push('고객명');
-  if (!data.projectName.trim()) missingItems.push('프로젝트명');
+  if (!data.customerName?.trim()) missingItems.push('고객명');
+  if (!data.projectName?.trim()) missingItems.push('프로젝트명');
   if (sellingPrice <= 0) missingItems.push('판매가 (0원 초과 필수)');
-  if (totalCost <= 0) missingItems.push('원가 항목 입력 필요');
+  if (totalCost <= 0) missingItems.push('원가 항목 금액 입력');
 
   return {
     totalCost,
@@ -131,6 +85,8 @@ export function calculateQuotation(data: QuotationData): CalculationResult {
     isLoss: margin < 0,
     isValidSellingPrice: sellingPrice > 0,
     missingItems,
+    materialsCost,
+    operationsCost,
   };
 }
 

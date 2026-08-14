@@ -1,6 +1,7 @@
 import React from 'react';
 import { QuotationData, CalculationResult } from '../types';
-import { COST_ITEMS_CONFIG, formatKRW, formatPercent } from '../utils/formatters';
+import { formatKRW, formatPercent } from '../utils/formatters';
+import { DEFAULT_PALETTE_COLORS } from '../data/samples';
 
 interface CostVisualizerProps {
   data: QuotationData;
@@ -10,6 +11,7 @@ interface CostVisualizerProps {
 export const CostVisualizer: React.FC<CostVisualizerProps> = ({ data, result }) => {
   const { totalCost, margin, marginRate, isLoss, isValidSellingPrice } = result;
   const sellingPrice = data.sellingPrice || 0;
+  const costItems = data.costItems || [];
 
   if (totalCost <= 0 && sellingPrice <= 0) {
     return null;
@@ -47,21 +49,23 @@ export const CostVisualizer: React.FC<CostVisualizerProps> = ({ data, result }) 
           </div>
 
           <div className="h-5 w-full rounded-full bg-slate-100 flex overflow-hidden border border-slate-200/70 p-0.5 gap-0.5">
-            {COST_ITEMS_CONFIG.map((item) => {
-              const val = data[item.key] || 0;
+            {costItems.map((item, idx) => {
+              const val = Number(item.amount) || 0;
               const pct = (val / sellingPrice) * 100;
               if (pct <= 0) return null;
+              const itemColor = item.color || DEFAULT_PALETTE_COLORS[idx % DEFAULT_PALETTE_COLORS.length];
+
               return (
                 <div
-                  key={item.key}
+                  key={item.id}
                   style={{
                     width: `${Math.min(pct, 100)}%`,
-                    backgroundColor: item.color,
+                    backgroundColor: itemColor,
                   }}
                   className="h-full rounded-xs relative group transition-all duration-300 hover:opacity-90 flex items-center justify-center text-[10px] text-white font-bold overflow-hidden"
-                  title={`${item.label}: ${formatKRW(val)} (${formatPercent(pct)})`}
+                  title={`${item.name}: ${formatKRW(val)} (${formatPercent(pct)})`}
                 >
-                  {pct > 7 && <span className="truncate px-1 text-[10px]">{item.label}</span>}
+                  {pct > 8 && <span className="truncate px-1 text-[10px]">{item.name}</span>}
                 </div>
               );
             })}
@@ -84,22 +88,23 @@ export const CostVisualizer: React.FC<CostVisualizerProps> = ({ data, result }) 
       )}
 
       {/* Legend & Breakdown Chips */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 pt-1 text-xs">
-        {COST_ITEMS_CONFIG.map((item) => {
-          const val = data[item.key] || 0;
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5 pt-1 text-xs">
+        {costItems.map((item, idx) => {
+          const val = Number(item.amount) || 0;
           const costPct = totalCost > 0 ? (val / totalCost) * 100 : 0;
+          const itemColor = item.color || DEFAULT_PALETTE_COLORS[idx % DEFAULT_PALETTE_COLORS.length];
 
           return (
             <div
-              key={item.key}
+              key={item.id}
               className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between"
             >
-              <div className="flex items-center gap-1.5 font-medium text-slate-600">
+              <div className="flex items-center gap-1.5 font-medium text-slate-700">
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: item.color }}
+                  style={{ backgroundColor: itemColor }}
                 ></span>
-                <span className="truncate text-xs">{item.label}</span>
+                <span className="truncate text-xs font-semibold">{item.name}</span>
               </div>
               <div className="mt-2">
                 <div className="font-bold text-slate-800 text-xs">{formatKRW(val)}</div>
@@ -125,7 +130,7 @@ export const CostVisualizer: React.FC<CostVisualizerProps> = ({ data, result }) 
                 isLoss ? 'bg-rose-500' : 'bg-emerald-500'
               }`}
             ></span>
-            <span className="truncate text-xs">{isLoss ? '손실' : '순마진'}</span>
+            <span className="truncate text-xs">{isLoss ? '손실' : '순마진 (이익)'}</span>
           </div>
           <div className="mt-2">
             <div

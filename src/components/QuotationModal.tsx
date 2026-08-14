@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { QuotationData, CalculationResult } from '../types';
 import { formatKRW, formatPercent } from '../utils/formatters';
 import { exportElementToPdf, exportElementToImage, triggerPrintWithFallback } from '../utils/pdfExport';
-import { Download, Printer, Image, X, Check, Loader2, FileText, AlertCircle } from 'lucide-react';
+import { Download, Printer, Image, X, Check, Loader2, FileText, AlertCircle, ExternalLink } from 'lucide-react';
 
 interface QuotationModalProps {
   isOpen: boolean;
@@ -36,7 +36,7 @@ export const QuotationModal: React.FC<QuotationModalProps> = ({
         `${defaultFileName}.pdf`
       );
       if (success) {
-        setSuccessMessage('PDF 파일이 성공적으로 다운로드되었습니다.');
+        setSuccessMessage('PDF 파일이 성공적으로 생성 및 다운로드되었습니다.');
         setTimeout(() => setSuccessMessage(null), 4000);
       } else {
         setErrorMessage('PDF 생성 중 오류가 발생했습니다. 브라우저 인쇄 기능을 이용해보세요.');
@@ -76,7 +76,7 @@ export const QuotationModal: React.FC<QuotationModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 no-print">
-      <div className="bg-slate-100 rounded-2xl shadow-2xl border border-slate-300 w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+      <div className="bg-slate-100 rounded-2xl shadow-2xl border border-slate-300 w-full max-w-5xl max-h-[94vh] flex flex-col overflow-hidden">
         {/* Modal Header Bar */}
         <div className="px-6 py-4 bg-white border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2.5">
@@ -85,10 +85,10 @@ export const QuotationModal: React.FC<QuotationModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                견적 및 원가 검토서 미리보기 & PDF 저장
+                주방가구 견적 및 원가 검토서 (A4 표준 양식)
               </h2>
               <p className="text-xs text-slate-500">
-                A4 표준 규격 양식으로 즉시 PDF 다운로드 및 결재용 인쇄가 가능합니다.
+                직접 입력한 모든 원가 항목과 결재란이 포함된 공식 PDF를 다운로드 및 인쇄할 수 있습니다.
               </p>
             </div>
           </div>
@@ -133,7 +133,7 @@ export const QuotationModal: React.FC<QuotationModalProps> = ({
               onClick={handleDownloadImage}
               disabled={isExportingImg}
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors shadow-2xs cursor-pointer"
-              title="카카오톡/모바일 전송용 이미지 저장"
+              title="모바일 전송용 이미지 저장"
             >
               {isExportingImg ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -155,7 +155,7 @@ export const QuotationModal: React.FC<QuotationModalProps> = ({
           </div>
         </div>
 
-        {/* Feedback message banner if any */}
+        {/* Feedback message banner */}
         {successMessage && (
           <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-2.5 text-xs text-emerald-800 flex items-center gap-2 font-medium">
             <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -210,6 +210,7 @@ export const PrintQuotationSheetContent: React.FC<{
 }> = ({ data, result }) => {
   const { totalCost, margin, marginRate, isLoss, isValidSellingPrice } = result;
   const sellingPrice = data.sellingPrice || 0;
+  const costItems = data.costItems || [];
 
   return (
     <div>
@@ -275,7 +276,7 @@ export const PrintQuotationSheetContent: React.FC<{
         </div>
       </div>
 
-      {/* 4 Key Summary Indicators */}
+      {/* 1. Key Summary Indicators */}
       <div className="mb-6">
         <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 bg-slate-900 rounded-full"></span>
@@ -317,54 +318,51 @@ export const PrintQuotationSheetContent: React.FC<{
         </table>
       </div>
 
-      {/* Itemized Cost Breakdown Table */}
+      {/* 2. Itemized Cost Breakdown Table (Dynamic items) */}
       <div className="mb-6">
         <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 bg-slate-900 rounded-full"></span>
-          2. 원가 세부 내역 (6개 주요 항목)
+          2. 원가 세부 내역 (직접 입력 {costItems.length}개 항목)
         </h2>
         <table className="w-full border-collapse border border-slate-300 text-xs">
           <thead className="bg-slate-100 font-bold text-slate-700">
             <tr>
-              <th className="border border-slate-300 py-2 px-3 text-center w-10">No.</th>
-              <th className="border border-slate-300 py-2 px-3 text-left w-32">원가 항목</th>
-              <th className="border border-slate-300 py-2 px-3 text-left">항목 내용 및 세부 기준</th>
-              <th className="border border-slate-300 py-2 px-3 text-right w-32">금액 (원)</th>
-              <th className="border border-slate-300 py-2 px-3 text-right w-20">원가 비중</th>
-              <th className="border border-slate-300 py-2 px-3 text-right w-20">판매가 대비</th>
+              <th className="border border-slate-300 py-2 px-2.5 text-center w-9">No.</th>
+              <th className="border border-slate-300 py-2 px-2.5 text-center w-16">구분</th>
+              <th className="border border-slate-300 py-2 px-3 text-left w-36">원가 항목</th>
+              <th className="border border-slate-300 py-2 px-3 text-left">항목 내용 및 세부 규격</th>
+              <th className="border border-slate-300 py-2 px-3 text-right w-28">금액 (원)</th>
+              <th className="border border-slate-300 py-2 px-2.5 text-right w-16">원가비중</th>
+              <th className="border border-slate-300 py-2 px-2.5 text-right w-16">판매가대비</th>
             </tr>
           </thead>
           <tbody>
-            {[
-              { key: 'doorCost', label: '1. 도어 비용', description: '도어 판넬, 엣지 밴딩 마감, 도장/PET 가공비' },
-              { key: 'countertopCost', label: '2. 상판 비용', description: '인조대리석, 엔지니어드스톤, 세라믹 상판 및 가공' },
-              { key: 'hardwareCost', label: '3. 하드웨어', description: '씽크볼, 수전, 후드, 경첩, 레일 등 부자재' },
-              { key: 'productionCost', label: '4. 가구 제작비', description: '공장 캐비닛 몸통(PB/MDF) 재단, 조립 공임' },
-              { key: 'installationCost', label: '5. 시공비', description: '현장 시공팀 인건비, 양중비, 사다리차, 부자재' },
-              { key: 'otherCost', label: '6. 기타 비용', description: '현장 실측비, 폐기물 처리비, 운반비 및 예비비' },
-            ].map((item, idx) => {
-              const val = (data as unknown as Record<string, number>)[item.key] || 0;
+            {costItems.map((item, idx) => {
+              const val = Number(item.amount) || 0;
               const costPct = totalCost > 0 ? (val / totalCost) * 100 : 0;
               const salesPct = sellingPrice > 0 ? (val / sellingPrice) * 100 : 0;
 
               return (
-                <tr key={item.key}>
-                  <td className="border border-slate-300 py-2 px-3 text-center text-slate-500 font-medium">
+                <tr key={item.id}>
+                  <td className="border border-slate-300 py-2 px-2.5 text-center text-slate-500 font-medium">
                     {idx + 1}
                   </td>
+                  <td className="border border-slate-300 py-2 px-2.5 text-center text-[11px] text-slate-600 font-medium">
+                    {item.category || '기타'}
+                  </td>
                   <td className="border border-slate-300 py-2 px-3 font-bold text-slate-800">
-                    {item.label}
+                    {item.name}
                   </td>
                   <td className="border border-slate-300 py-2 px-3 text-slate-600">
-                    {item.description}
+                    {item.description || '-'}
                   </td>
                   <td className="border border-slate-300 py-2 px-3 text-right font-bold text-slate-900">
                     {formatKRW(val)}
                   </td>
-                  <td className="border border-slate-300 py-2 px-3 text-right text-slate-600 font-medium">
+                  <td className="border border-slate-300 py-2 px-2.5 text-right text-slate-600 font-medium">
                     {formatPercent(costPct)}
                   </td>
-                  <td className="border border-slate-300 py-2 px-3 text-right text-slate-600 font-medium">
+                  <td className="border border-slate-300 py-2 px-2.5 text-right text-slate-600 font-medium">
                     {sellingPrice > 0 ? formatPercent(salesPct) : '-'}
                   </td>
                 </tr>
@@ -373,16 +371,16 @@ export const PrintQuotationSheetContent: React.FC<{
           </tbody>
           <tfoot className="bg-slate-50 font-extrabold">
             <tr>
-              <td colSpan={3} className="border border-slate-300 py-2.5 px-3 text-center text-slate-900">
-                총제조원가 합계
+              <td colSpan={4} className="border border-slate-300 py-2.5 px-3 text-center text-slate-900">
+                총제조원가 합계 ({costItems.length}개 항목)
               </td>
               <td className="border border-slate-300 py-2.5 px-3 text-right text-slate-900 text-sm">
                 {formatKRW(totalCost)}
               </td>
-              <td className="border border-slate-300 py-2.5 px-3 text-right text-slate-900">
+              <td className="border border-slate-300 py-2.5 px-2.5 text-right text-slate-900">
                 100.0%
               </td>
-              <td className="border border-slate-300 py-2.5 px-3 text-right text-slate-900">
+              <td className="border border-slate-300 py-2.5 px-2.5 text-right text-slate-900">
                 {sellingPrice > 0 ? formatPercent((totalCost / sellingPrice) * 100) : '-'}
               </td>
             </tr>
@@ -390,11 +388,11 @@ export const PrintQuotationSheetContent: React.FC<{
         </table>
       </div>
 
-      {/* Notes & Terms */}
+      {/* 3. Notes & Terms */}
       <div className="mb-6">
         <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 bg-slate-900 rounded-full"></span>
-          3. 특이사항 및 비고
+          3. 특이사항 및 시공 조건
         </h2>
         <div className="border border-slate-300 rounded p-3 min-h-[50px] text-xs text-slate-700 bg-slate-50/50 whitespace-pre-wrap leading-relaxed">
           {data.notes || '특이사항 없음 (표준 시공 및 발주 조건 준수)'}

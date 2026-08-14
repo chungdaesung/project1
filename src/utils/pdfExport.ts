@@ -1,8 +1,8 @@
-import html2canvas from 'html2canvas';
+import { toCanvas, toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 
 /**
- * Downloads the given DOM element as a high-resolution PDF file.
+ * Downloads the given DOM element as a high-resolution A4 PDF file.
  */
 export async function exportElementToPdf(
   elementId: string,
@@ -15,17 +15,21 @@ export async function exportElementToPdf(
   }
 
   try {
-    // Create a high-DPI canvas capture of the element
-    const canvas = await html2canvas(element, {
-      scale: 2.5, // High resolution for crisp print quality
-      useCORS: true,
-      logging: false,
+    // Generate high-resolution canvas using html-to-image
+    const canvas = await toCanvas(element, {
+      pixelRatio: 2,
       backgroundColor: '#ffffff',
-      windowWidth: 1024,
+      cacheBust: true,
+      style: {
+        transform: 'none',
+        left: '0px',
+        top: '0px',
+        position: 'static',
+      },
     });
 
-    const imgData = canvas.toDataURL('image/png', 1.0);
-    
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
     // Standard A4 dimensions in mm: 210 x 297
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -39,20 +43,19 @@ export async function exportElementToPdf(
     const imgWidth = pageWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    // If height exceeds A4, scale proportionally or add pages
     if (imgHeight <= pageHeight) {
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
     } else {
       let heightLeft = imgHeight;
       let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
       heightLeft -= pageHeight;
 
       while (heightLeft > 0) {
         position = heightLeft - imgHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
         heightLeft -= pageHeight;
       }
     }
@@ -61,13 +64,19 @@ export async function exportElementToPdf(
     pdf.save(cleanFileName);
     return true;
   } catch (error) {
-    console.error('Failed to export PDF:', error);
-    return false;
+    console.error('Failed to export PDF with html-to-image:', error);
+    // Fallback: try direct window print if PDF export failed
+    try {
+      window.print();
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 
 /**
- * Downloads the given DOM element as a PNG image (useful for mobile sharing/KakaoTalk).
+ * Downloads the given DOM element as a PNG image (for mobile messenger sharing).
  */
 export async function exportElementToImage(
   elementId: string,
@@ -77,16 +86,20 @@ export async function exportElementToImage(
   if (!element) return false;
 
   try {
-    const canvas = await html2canvas(element, {
-      scale: 2.5,
-      useCORS: true,
-      logging: false,
+    const dataUrl = await toPng(element, {
+      pixelRatio: 2,
       backgroundColor: '#ffffff',
+      cacheBust: true,
+      style: {
+        transform: 'none',
+        left: '0px',
+        top: '0px',
+        position: 'static',
+      },
     });
 
-    const imgData = canvas.toDataURL('image/png');
     const link = document.createElement('a');
-    link.href = imgData;
+    link.href = dataUrl;
     link.download = fileName.endsWith('.png') ? fileName : `${fileName}.png`;
     document.body.appendChild(link);
     link.click();
@@ -99,7 +112,7 @@ export async function exportElementToImage(
 }
 
 /**
- * Triggers printing with fallback if iframe prevents window.print()
+ * Triggers printing with fallback popup window
  */
 export function triggerPrintWithFallback(elementId: string): void {
   try {

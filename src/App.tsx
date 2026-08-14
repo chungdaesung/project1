@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { QuotationData, CostItemKey } from './types';
+import { QuotationData, CostItemEntry } from './types';
 import { calculateQuotation, formatKRW } from './utils/formatters';
-import { SAMPLE_QUOTES, INITIAL_QUOTATION_DATA } from './data/samples';
+import { SAMPLE_QUOTES, INITIAL_QUOTATION_DATA, DEFAULT_PALETTE_COLORS, STANDARD_COST_PRESETS } from './data/samples';
 import { CurrencyInput } from './components/CurrencyInput';
 import { SummaryCards } from './components/SummaryCards';
 import { CostBreakdownTable } from './components/CostBreakdownTable';
@@ -32,14 +32,55 @@ export default function App() {
   const [isQuotationModalOpen, setIsQuotationModalOpen] = useState<boolean>(false);
   const [isDownloadingPdfDirect, setIsDownloadingPdfDirect] = useState<boolean>(false);
 
-  // Real-time calculation
+  // Real-time calculation based on dynamic cost items
   const result = useMemo(() => calculateQuotation(data), [data]);
 
-  const handleCostChange = (key: CostItemKey, value: number) => {
+  // Update a single cost item
+  const handleUpdateCostItem = (id: string, updates: Partial<CostItemEntry>) => {
     setData((prev) => ({
       ...prev,
-      [key]: value,
+      costItems: prev.costItems.map((item) =>
+        item.id === id ? { ...item, ...updates } : item
+      ),
     }));
+  };
+
+  // Add a new cost item
+  const handleAddCostItem = (newItem?: Partial<CostItemEntry>) => {
+    const newId = `item-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const nextColorIndex = (data.costItems?.length || 0) % DEFAULT_PALETTE_COLORS.length;
+
+    const itemToAdd: CostItemEntry = {
+      id: newId,
+      name: newItem?.name || `추가 원가 항목 ${(data.costItems?.length || 0) + 1}`,
+      category: newItem?.category || '기타',
+      description: newItem?.description || '',
+      amount: newItem?.amount || 0,
+      color: newItem?.color || DEFAULT_PALETTE_COLORS[nextColorIndex],
+    };
+
+    setData((prev) => ({
+      ...prev,
+      costItems: [...prev.costItems, itemToAdd],
+    }));
+  };
+
+  // Delete a cost item
+  const handleDeleteCostItem = (id: string) => {
+    setData((prev) => ({
+      ...prev,
+      costItems: prev.costItems.filter((item) => item.id !== id),
+    }));
+  };
+
+  // Reset cost items back to standard default 6 items
+  const handleResetToDefaultItems = () => {
+    if (window.confirm('기본 표준 6대 원가 항목 구성으로 재설정하시겠습니까?')) {
+      setData((prev) => ({
+        ...prev,
+        costItems: INITIAL_QUOTATION_DATA.costItems,
+      }));
+    }
   };
 
   const handleSellingPriceChange = (value: number) => {
@@ -64,12 +105,56 @@ export default function App() {
         quoteDate: new Date().toISOString().split('T')[0],
         quoteNumber: `KQ-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
         managerName: '',
-        doorCost: 0,
-        countertopCost: 0,
-        hardwareCost: 0,
-        productionCost: 0,
-        installationCost: 0,
-        otherCost: 0,
+        costItems: [
+          {
+            id: 'item-1',
+            name: '도어 비용',
+            description: '도어 판넬 및 가공비',
+            amount: 0,
+            category: '자재비',
+            color: DEFAULT_PALETTE_COLORS[0],
+          },
+          {
+            id: 'item-2',
+            name: '상판 비용',
+            description: '인조대리석 / 세라믹 상판',
+            amount: 0,
+            category: '자재비',
+            color: DEFAULT_PALETTE_COLORS[1],
+          },
+          {
+            id: 'item-3',
+            name: '하드웨어/기기',
+            description: '힌지, 레일, 싱크볼, 수전 등',
+            amount: 0,
+            category: '자재비',
+            color: DEFAULT_PALETTE_COLORS[2],
+          },
+          {
+            id: 'item-4',
+            name: '몸통 제작비',
+            description: '공장 캐비닛 가공 및 조립 공임',
+            amount: 0,
+            category: '가공/제작비',
+            color: DEFAULT_PALETTE_COLORS[3],
+          },
+          {
+            id: 'item-5',
+            name: '현장 시공비',
+            description: '시공 인건비 및 설치비',
+            amount: 0,
+            category: '시공/인건비',
+            color: DEFAULT_PALETTE_COLORS[4],
+          },
+          {
+            id: 'item-6',
+            name: '기타/폐기물',
+            description: '철거, 양중, 보양 및 기타비',
+            amount: 0,
+            category: '부대비용',
+            color: DEFAULT_PALETTE_COLORS[5],
+          },
+        ],
         sellingPrice: 0,
         notes: '',
       });
@@ -89,35 +174,41 @@ export default function App() {
     setIsQuotationModalOpen(true);
   };
 
+  // 1-Click Instant High-Resolution PDF Download
   const handleDirectDownloadPdf = async () => {
     setIsDownloadingPdfDirect(true);
     try {
-      // First open modal so element is in DOM if not already, or use modal element
-      setIsQuotationModalOpen(true);
-      setTimeout(async () => {
-        const defaultFileName = `주방가구_견적원가검토서_${data.customerName ? data.customerName.replace(/[^a-zA-Z0-9가-힣]/g, '_') : '미지정'}_${data.quoteDate || new Date().toISOString().slice(0, 10)}.pdf`;
-        await exportElementToPdf('modal-printable-sheet', defaultFileName);
-        setIsDownloadingPdfDirect(false);
-      }, 300);
+      const defaultFileName = `주방가구_견적원가검토서_${data.customerName ? data.customerName.replace(/[^a-zA-Z0-9가-힣]/g, '_') : '미지정'}_${data.quoteDate || new Date().toISOString().slice(0, 10)}.pdf`;
+      // Use the offscreen sheet or fallback to modal
+      const targetId = document.getElementById('direct-pdf-export-sheet')
+        ? 'direct-pdf-export-sheet'
+        : 'printable-quotation-sheet';
+
+      const success = await exportElementToPdf(targetId, defaultFileName);
+      if (!success) {
+        // If offscreen failed, open modal for interactive download
+        setIsQuotationModalOpen(true);
+      }
     } catch (e) {
-      console.error(e);
+      console.error('PDF export error:', e);
+      setIsQuotationModalOpen(true);
+    } finally {
       setIsDownloadingPdfDirect(false);
     }
   };
 
   const handleCopySummary = () => {
+    const costDetails = data.costItems
+      .map((item) => `  - ${item.name} (${item.category || '기타'}): ${formatKRW(item.amount)}`)
+      .join('\n');
+
     const summaryText = `[주방가구 견적 및 원가 요약]
 • 고객명: ${data.customerName || '미지정'}
 • 프로젝트: ${data.projectName || '미지정'}
-• 판매가: ${formatKRW(data.sellingPrice)}
-• 총원가: ${formatKRW(result.totalCost)}
-  - 도어: ${formatKRW(data.doorCost)}
-  - 상판: ${formatKRW(data.countertopCost)}
-  - 하드웨어: ${formatKRW(data.hardwareCost)}
-  - 제작비: ${formatKRW(data.productionCost)}
-  - 시공비: ${formatKRW(data.installationCost)}
-  - 기타비: ${formatKRW(data.otherCost)}
-• 마진: ${formatKRW(result.margin)}
+• 최종 판매가: ${formatKRW(data.sellingPrice)}
+• 총제조원가: ${formatKRW(result.totalCost)} (항목 ${data.costItems.length}개)
+${costDetails}
+• 예상 마진: ${formatKRW(result.margin)}
 • 마진율: ${result.marginRate.toFixed(1)}%`;
 
     navigator.clipboard.writeText(summaryText);
@@ -157,7 +248,7 @@ export default function App() {
                   type="button"
                   id="btn-sample-toggle"
                   onClick={() => setShowSampleMenu(!showSampleMenu)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                   <span className="hidden md:inline">예시 견적</span> 불러오기
@@ -179,7 +270,7 @@ export default function App() {
                           type="button"
                           id={`btn-sample-${idx}`}
                           onClick={() => handleLoadSample(sample.data)}
-                          className="w-full text-left px-4 py-2.5 hover:bg-indigo-50/70 transition-colors flex flex-col gap-0.5 border-t border-slate-100 first:border-t-0"
+                          className="w-full text-left px-4 py-2.5 hover:bg-indigo-50/70 transition-colors flex flex-col gap-0.5 border-t border-slate-100 first:border-t-0 cursor-pointer"
                         >
                           <span className="text-xs font-bold text-slate-800">
                             {sample.title}
@@ -199,13 +290,13 @@ export default function App() {
                 type="button"
                 id="btn-copy-summary"
                 onClick={handleCopySummary}
-                className="hidden lg:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+                className="hidden lg:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
                 title="견적 요약 텍스트 복사"
               >
                 {copiedNotification ? (
                   <>
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span className="text-emerald-700">복사완료!</span>
+                    <span className="text-emerald-700 font-bold">복사완료!</span>
                   </>
                 ) : (
                   <>
@@ -220,7 +311,7 @@ export default function App() {
                 type="button"
                 id="btn-reset"
                 onClick={handleReset}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-600 transition-colors shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-slate-600 transition-colors shadow-2xs cursor-pointer"
                 title="모든 항목 비우기"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -233,13 +324,13 @@ export default function App() {
                 id="btn-direct-download-pdf"
                 onClick={handleDirectDownloadPdf}
                 disabled={isDownloadingPdfDirect}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-700 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
                 title="A4 규격 PDF 파일로 즉시 다운로드"
               >
                 {isDownloadingPdfDirect ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-                    <span>저장 중...</span>
+                    <span>PDF 저장 중...</span>
                   </>
                 ) : (
                   <>
@@ -254,7 +345,7 @@ export default function App() {
                 type="button"
                 id="btn-print-pdf"
                 onClick={handleOpenQuotation}
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100 transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100 transition-all cursor-pointer"
               >
                 <Eye className="w-4 h-4" />
                 <span>견적서 미리보기 & PDF</span>
@@ -393,10 +484,13 @@ export default function App() {
           {/* Visualizer Bar */}
           <CostVisualizer data={data} result={result} />
 
-          {/* 6 Cost Items Breakdown Table & Inputs */}
+          {/* User-customizable Cost Items Breakdown Table & Inputs */}
           <CostBreakdownTable
             data={data}
-            onChange={handleCostChange}
+            onUpdateItem={handleUpdateCostItem}
+            onAddItem={handleAddCostItem}
+            onDeleteItem={handleDeleteCostItem}
+            onResetToDefaultItems={handleResetToDefaultItems}
             totalCost={result.totalCost}
             sellingPrice={data.sellingPrice}
           />
@@ -411,7 +505,7 @@ export default function App() {
                 <FileText className="w-3.5 h-3.5 text-slate-400" />
                 특이사항 및 비고 (도면 규격, 자재 스펙, 시공 조건 등)
               </label>
-              <span className="text-[11px] text-slate-400">인쇄 문서에 함께 출력됩니다</span>
+              <span className="text-[11px] text-slate-400">인쇄 문서 및 PDF에 함께 출력됩니다</span>
             </div>
             <textarea
               id="input-notes"
@@ -443,7 +537,7 @@ export default function App() {
                 type="button"
                 id="btn-print-pdf-bottom"
                 onClick={handleOpenQuotation}
-                className="w-full sm:w-auto px-5 py-2.5 text-xs sm:text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full sm:w-auto px-5 py-2.5 text-xs sm:text-sm font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <Eye className="w-4 h-4" />
                 <span>견적 및 원가 검토서 미리보기 & PDF</span>
@@ -462,7 +556,7 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Dedicated Clean A4 Printable Sheet (Visible only on print) */}
+      {/* Dedicated Clean A4 Printable Sheet (Visible only on print or export) */}
       <PrintQuotationSheet data={data} result={result} />
 
       {/* Full-featured Quotation Preview & PDF Download Modal */}
