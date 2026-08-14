@@ -422,7 +422,7 @@ export const CostBreakdownTable: React.FC<CostBreakdownTableProps> = ({
         <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
           <div className="flex items-center gap-2 text-slate-500 flex-wrap">
             <span className="font-semibold text-slate-700">빠른 항목 추가:</span>
-            {['도어 비용', '상판 비용', '하드웨어', '가구 제작비', '현장 시공비', '철거/양중비'].map(
+            {['도어 비용', '상판 비용', '하드웨어', '가구 제작비', '현장 시공비', '물류운반비', '철거/양중비'].map(
               (label, idx) => (
                 <button
                   key={idx}
