@@ -1,0 +1,6 @@
+{
+  "name": "주방가구 견적 및 원가 계산기",
+  "description": "주방가구 견적 작성 및 총원가, 마진, 마진율을 실시간으로 계산하고 검토 및 인쇄할 수 있는 웹 도구",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
